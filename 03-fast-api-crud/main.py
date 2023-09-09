@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
@@ -15,7 +15,7 @@ class Person(BaseModel):
 
 
 with open("people.json", "r") as f:
-    people = json.load(f)["people"]
+    people = json.load(f)
 
 
 @app.get("/person/{p_id}", status_code=200)
@@ -65,3 +65,25 @@ def create_person(person: Person):
         json.dump(people, f)
 
     return new_person
+
+
+@app.put("/person/{p_id}", status_code=200)
+def update_person(p_id: int, person: Person):
+    new_person = {
+        "id": p_id,
+        "name": person.name,
+        "age": person.age,
+        "gender": person.gender,
+    }
+    person = [p for p in people if p["id"] == p_id]
+    if len(person) > 0:
+        people.remove(person[0])
+        people.append(new_person)
+        with open("people.json", "w") as f:
+            json.dump(people, f)
+
+        return new_person
+    else:
+        return HTTPException(
+            status_code=404, detail=f"Person with id {p_id} does not exist"
+        )
