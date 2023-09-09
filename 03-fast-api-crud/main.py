@@ -47,3 +47,21 @@ def get_person(
         else:
             combined = [p for p in people1 if p in people2]
             return combined
+
+
+@app.post("/person", status_code=201)
+def create_person(person: Person):
+    p_id = max([p["id"] for p in people]) + 1
+    new_person = {
+        "id": p_id,
+        "name": person.name,
+        "age": person.age,
+        "gender": person.gender,
+    }
+
+    people.append(new_person)
+
+    with open("people.json", "w") as f:
+        json.dump(people, f)
+
+    return new_person
