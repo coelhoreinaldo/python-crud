@@ -41,9 +41,12 @@ def get_person_by_id(
 ):
     query = f"SELECT * FROM people WHERE id = {p_id}"
     cursor.execute(query)
-    result = cursor.fetchall()
-    if len(result) > 0:
-        return result[0]
+    result = cursor.fetchone()
+
+    if result:
+        column_names = [desc[0] for desc in cursor.description]
+        person_dict = dict(zip(column_names, result))
+        return person_dict
     else:
         raise HTTPException(
             status_code=404, detail=f"Person with id {p_id} does not exist"
