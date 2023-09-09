@@ -98,26 +98,33 @@ def create_person(
     return new_person
 
 
-# @app.put("/person/{p_id}", status_code=200)
-# def update_person(p_id: int, person: Person):
-#     new_person = {
-#         "id": p_id,
-#         "name": person.name,
-#         "age": person.age,
-#         "gender": person.gender,
-#     }
-#     person = [p for p in people if p["id"] == p_id]
-#     if len(person) > 0:
-#         people.remove(person[0])
-#         people.append(new_person)
-#         with open("people.json", "w") as f:
-#             json.dump(people, f)
+@app.put("/person/{p_id}", status_code=200)
+def update_person(
+    p_id: int,
+    person: Person,
+    cursor: mysql.connector.cursor.MySQLCursor = Depends(get_db),
+):
+    query = "SELECT * FROM people WHERE id = %s"
+    cursor.execute(query, (p_id,))
+    result = cursor.fetchone()
 
-#         return new_person
-#     else:
-#         return HTTPException(
-#             status_code=404, detail=f"Person with id {p_id} does not exist"
-#         )
+    if result is None:
+        raise HTTPException(
+            status_code=404, detail=f"Person with id {p_id} does not exist"
+        )
+
+    query = "UPDATE people SET name = %s, age = %s, gender = %s WHERE id = %s"
+    values = (person.name, person.age, person.gender, p_id)
+    cursor.execute(query, values)
+
+    updated_person = {
+        "id": p_id,
+        "name": person.name,
+        "age": person.age,
+        "gender": person.gender,
+    }
+
+    return updated_person
 
 
 # @app.delete("/person/{p_id}}", status_code=204)
