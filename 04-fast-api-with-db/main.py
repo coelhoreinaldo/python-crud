@@ -3,8 +3,6 @@ from fastapi import FastAPI, Query, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 
-import json
-
 
 def get_db():
     connection = mysql.connector.connect(
@@ -29,10 +27,6 @@ class Person(BaseModel):
     name: str
     age: int
     gender: str
-
-
-with open("people.json", "r") as f:
-    people = json.load(f)
 
 
 @app.get("/person/{p_id}", status_code=200)
@@ -61,71 +55,75 @@ def get_person(
     name: Optional[str] = Query(
         None, title="Name", description="The name to filter for"
     ),
+    cursor: mysql.connector.cursor.MySQLCursor = Depends(get_db),
 ):
-    people1 = [p for p in people if p["age"] == age]
+    query = "SELECT * FROM people WHERE 1=1"
 
-    if name is None:
-        if age is None:
-            return people
-        else:
-            return people1
+    if age is not None:
+        query += f" AND age = {age}"
+
+    if name is not None:
+        query += f" AND name LIKE '%{name}%'"
+
+    cursor.execute(query)
+    results = cursor.fetchall()
+
+    if results:
+        column_names = [desc[0] for desc in cursor.description]
+        people_list = [dict(zip(column_names, row)) for row in results]
+        return people_list
     else:
-        people2 = [p for p in people if name.lower() in p["name"].lower()]
-        if age is None:
-            return people2
-        else:
-            combined = [p for p in people1 if p in people2]
-            return combined
+        return []
 
 
-@app.post("/person", status_code=201)
-def create_person(person: Person):
-    p_id = max([p["id"] for p in people]) + 1
-    new_person = {
-        "id": p_id,
-        "name": person.name,
-        "age": person.age,
-        "gender": person.gender,
-    }
+# @app.post("/person", status_code=201)
+# def create_person(person: Person):
+#     p_id = max([p["id"] for p in people]) + 1
+#     new_person = {
+#         "id": p_id,
+#         "name": person.name,
+#         "age": person.age,
+#         "gender": person.gender,
+#     }
 
-    people.append(new_person)
+#     people.append(new_person)
 
-    with open("people.json", "w") as f:
-        json.dump(people, f)
+#     with open("people.json", "w") as f:
+#         json.dump(people, f)
 
-    return new_person
-
-
-@app.put("/person/{p_id}", status_code=200)
-def update_person(p_id: int, person: Person):
-    new_person = {
-        "id": p_id,
-        "name": person.name,
-        "age": person.age,
-        "gender": person.gender,
-    }
-    person = [p for p in people if p["id"] == p_id]
-    if len(person) > 0:
-        people.remove(person[0])
-        people.append(new_person)
-        with open("people.json", "w") as f:
-            json.dump(people, f)
-
-        return new_person
-    else:
-        return HTTPException(
-            status_code=404, detail=f"Person with id {p_id} does not exist"
-        )
+#     return new_person
 
 
-@app.delete("/person/{p_id}}", status_code=204)
-def delete_person(p_id: int):
-    person_to_delete = [p for p in people if p["id"] == p_id]
-    if len(person_to_delete) > 0:
-        people.remove(person_to_delete[0])
-        with open("people.json", "w") as f:
-            json.dump(people, f)
-    else:
-        raise HTTPException(
-            status_code=404, detail=f"Person with id {p_id} does not exist"
-        )
+# @app.put("/person/{p_id}", status_code=200)
+# def update_person(p_id: int, person: Person):
+#     new_person = {
+#         "id": p_id,
+#         "name": person.name,
+#         "age": person.age,
+#         "gender": person.gender,
+#     }
+#     person = [p for p in people if p["id"] == p_id]
+#     if len(person) > 0:
+#         people.remove(person[0])
+#         people.append(new_person)
+#         with open("people.json", "w") as f:
+#             json.dump(people, f)
+
+#         return new_person
+#     else:
+#         return HTTPException(
+#             status_code=404, detail=f"Person with id {p_id} does not exist"
+#         )
+
+
+# @app.delete("/person/{p_id}}", status_code=204)
+# def delete_person(p_id: int):
+#     person_to_delete = [p for p in people if p["id"] == p_id]
+#     if len(person_to_delete) > 0:
+#         people.remove(person_to_delete[0])
+#         with open("people.json", "w") as f:
+#             json.dump(people, f)
+#     else:
+#         raise HTTPException(
+#             status_code=404, detail=f"Person with id {p_id} does not exist"
+#         )
