@@ -15,6 +15,7 @@ def get_db():
     try:
         yield cursor
     finally:
+        connection.commit()
         cursor.close()
         connection.close()
 
@@ -76,22 +77,25 @@ def get_person(
         return []
 
 
-# @app.post("/person", status_code=201)
-# def create_person(person: Person):
-#     p_id = max([p["id"] for p in people]) + 1
-#     new_person = {
-#         "id": p_id,
-#         "name": person.name,
-#         "age": person.age,
-#         "gender": person.gender,
-#     }
+@app.post("/person", status_code=201)
+def create_person(
+    person: Person,
+    cursor: mysql.connector.cursor.MySQLCursor = Depends(get_db),
+):
+    query = "INSERT INTO people (name, age, gender) VALUES (%s, %s, %s)"
+    values = (person.name, person.age, person.gender)
+    cursor.execute(query, values)
 
-#     people.append(new_person)
+    new_person_id = cursor.lastrowid
 
-#     with open("people.json", "w") as f:
-#         json.dump(people, f)
+    new_person = {
+        "id": new_person_id,
+        "name": person.name,
+        "age": person.age,
+        "gender": person.gender,
+    }
 
-#     return new_person
+    return new_person
 
 
 # @app.put("/person/{p_id}", status_code=200)
