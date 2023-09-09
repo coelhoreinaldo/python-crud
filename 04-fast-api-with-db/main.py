@@ -1,18 +1,25 @@
 import mysql.connector
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 
 import json
 
-connection = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="password",
-    database="the_office_db",
-)
 
-cursor = connection.cursor()
+def get_db():
+    connection = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="password",
+        database="the_office_db",
+    )
+    cursor = connection.cursor()
+    try:
+        yield cursor
+    finally:
+        cursor.close()
+        connection.close()
+
 
 app = FastAPI()
 
@@ -29,9 +36,18 @@ with open("people.json", "r") as f:
 
 
 @app.get("/person/{p_id}", status_code=200)
-def get_person_by_id(p_id: int):
-    person = [p for p in people if p["id"] == p_id]
-    return person[0] if len(person) > 0 else {}
+def get_person_by_id(
+    p_id: int, cursor: mysql.connector.cursor.MySQLCursor = Depends(get_db)
+):
+    query = f"SELECT * FROM people WHERE id = {p_id}"
+    cursor.execute(query)
+    result = cursor.fetchall()
+    if len(result) > 0:
+        return result[0]
+    else:
+        raise HTTPException(
+            status_code=404, detail=f"Person with id {p_id} does not exist"
+        )
 
 
 @app.get("/search", status_code=200)
@@ -110,7 +126,3 @@ def delete_person(p_id: int):
         raise HTTPException(
             status_code=404, detail=f"Person with id {p_id} does not exist"
         )
-
-
-connection.close()
-cursor.close()
